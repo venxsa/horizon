@@ -65,7 +65,14 @@ fn run(endpoint: &str) {
                     log::info!("Horizon: the live count ping failed ({e}); trying again later");
                 }
                 failed = true;
-                wait = (wait * 2).min(MAX_WAIT);
+
+                // On Android, aggressive retries on network drop cause socket aborts (os error 103).
+                // Back off to maximum wait immediately to stay quiet and preserve system stability.
+                if cfg!(target_os = "android") {
+                    wait = MAX_WAIT;
+                } else {
+                    wait = (wait * 2).min(MAX_WAIT);
+                }
             }
         }
         // Woken early by `set_lan`; a spurious wake only sends one ping more.
