@@ -175,6 +175,17 @@ impl Session {
                 );
                 let from_server = result.is_ok();
                 let reason = result.unwrap_or_else(|e| e);
+                if address_owned != "local" {
+                    log::info!(
+                        "Horizon: connection to {} ended ({}): {reason}",
+                        shown_address(&address_owned),
+                        if from_server {
+                            "by the server"
+                        } else {
+                            "failed"
+                        }
+                    );
+                }
                 if let Some(w) = thread_writer.lock().unwrap().take() {
                     w.shutdown();
                 }
@@ -753,6 +764,7 @@ pub fn ping(address: &str, timeout: Duration) -> Result<(serde_json::Value, u128
         .set_read_timeout(Some(timeout))
         .map_err(|e| e.to_string())?;
     let e = |e: horizon_protocol::Error| e.to_string();
+    let requested = std::time::Instant::now();
     c.send(
         &handshake::Serverbound::Intention(handshake::Intention {
             protocol: PROTOCOL_VERSION,
@@ -772,11 +784,14 @@ pub fn ping(address: &str, timeout: Duration) -> Result<(serde_json::Value, u128
         }
         _ => return Err("unexpected status reply".into()),
     };
+    let answered = requested.elapsed().as_millis();
     let start = std::time::Instant::now();
-    c.send(&status::Serverbound::PingRequest(status::Ping { time: 1 }).encode())
-        .map_err(e)?;
-    let _ = c.recv().map_err(e)?;
-    Ok((json, start.elapsed().as_millis()))
+    let latency = c
+        .send(&status::Serverbound::PingRequest(status::Ping { time: 1 }).encode())
+        .ok()
+        .and_then(|()| c.recv().ok())
+        .map(|_| start.elapsed().as_millis());
+    Ok((json, latency.unwrap_or(answered)))
 }
 
 #[cfg(test)]
@@ -950,6 +965,27 @@ mod tests {
             cookies.lock().unwrap().get("proxy:session"),
             Some(&vec![1, 2, 3])
         );
+    }
+
+    #[test]
+    fn ping_keeps_the_status_of_a_server_that_never_pongs() {
+        use horizon_protocol::packets::status;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut connection = Connection::from_stream(stream).unwrap();
+            connection.recv().unwrap();
+            connection.recv().unwrap();
+            let response = status::Clientbound::StatusResponse(status::StatusResponse {
+                json: r#"{"version":{"name":"26.3"},"description":"hello"}"#.into(),
+            });
+            connection.send(&response.encode()).unwrap();
+            connection.recv().unwrap();
+        });
+        let (json, _) = ping(&format!("127.0.0.1:{port}"), Duration::from_secs(5)).unwrap();
+        server.join().unwrap();
+        assert_eq!(json["description"], "hello");
     }
 
     #[test]

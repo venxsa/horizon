@@ -133,6 +133,8 @@ mod options;
 mod packs;
 mod pad;
 #[cfg(target_os = "android")]
+mod android_dns;
+#[cfg(target_os = "android")]
 mod android_ime;
 mod touch;
 mod pad_menu;
@@ -15317,6 +15319,8 @@ fn run_loading(
 }
 
 pub fn run() -> Result<()> {
+    #[cfg(target_os = "android")]
+    android_dns::install();
     let Some(mut options) = Options::read()? else {
         return Ok(());
     };

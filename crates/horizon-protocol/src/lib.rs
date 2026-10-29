@@ -14,6 +14,7 @@ pub mod packets;
 pub mod quiet;
 pub mod registry;
 mod resolver;
+pub use resolver::set_name_servers_source;
 pub mod rsa;
 pub mod secure_chat;
 pub mod servers;

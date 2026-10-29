@@ -179,7 +179,13 @@ fn ping_all(servers: &[ServerEntry], pings: &Pings, icons: &Icons, file: &Path) 
                             version,
                         }
                     }
-                    Err(e) => Ping::Failed(e),
+                    Err(e) => {
+                        log::info!(
+                            "Horizon: ping of {} failed: {e}",
+                            crate::net::shown_address(&address)
+                        );
+                        Ping::Failed(e)
+                    }
                 };
                 pings.lock().unwrap().insert(address, result);
             });

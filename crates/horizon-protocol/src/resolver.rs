@@ -7,6 +7,10 @@ use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 
 mod dns;
 
+pub fn set_name_servers_source(source: fn() -> Vec<SocketAddr>) {
+    dns::set_source(source);
+}
+
 pub(crate) fn resolve(host: &str, port: u16) -> Result<Vec<SocketAddr>> {
     resolve_with(host, port, srv_redirect, |host, port| {
         (host, port)

@@ -5,6 +5,7 @@
 use std::{
     io::{Read, Write},
     net::{SocketAddr, TcpStream, UdpSocket},
+    sync::OnceLock,
     time::Duration,
 };
 
@@ -12,16 +13,40 @@ const TYPE_SRV: u16 = 33;
 /// JNDI's `com.sun.jndi.dns.timeout.initial`, per name server.
 pub(super) const SERVER_TIMEOUT: Duration = Duration::from_secs(1);
 
+static SOURCE: OnceLock<fn() -> Vec<SocketAddr>> = OnceLock::new();
+
+pub(super) fn set_source(source: fn() -> Vec<SocketAddr>) {
+    let _ = SOURCE.set(source);
+}
+
+pub(super) fn system_name_servers() -> Vec<SocketAddr> {
+    preferred(
+        SOURCE.get().map_or_else(Vec::new, |source| source()),
+        platform_name_servers,
+    )
+}
+
+fn preferred(
+    provided: Vec<SocketAddr>,
+    fallback: impl FnOnce() -> Vec<SocketAddr>,
+) -> Vec<SocketAddr> {
+    if provided.is_empty() {
+        fallback()
+    } else {
+        provided
+    }
+}
+
 /// JNDI reads them from resolv.conf on Unix and from the network adapters on
 /// Windows.
 #[cfg(unix)]
-pub(super) fn system_name_servers() -> Vec<SocketAddr> {
+fn platform_name_servers() -> Vec<SocketAddr> {
     std::fs::read_to_string("/etc/resolv.conf")
         .map_or_else(|_| Vec::new(), |conf| name_servers(&conf))
 }
 
 #[cfg(windows)]
-pub(super) fn system_name_servers() -> Vec<SocketAddr> {
+fn platform_name_servers() -> Vec<SocketAddr> {
     let mut servers = Vec::new();
     for adapter in ipconfig::get_adapters().unwrap_or_default() {
         if adapter.oper_status() != ipconfig::OperStatus::IfOperStatusUp {
@@ -38,7 +63,7 @@ pub(super) fn system_name_servers() -> Vec<SocketAddr> {
 }
 
 #[cfg(not(any(unix, windows)))]
-pub(super) fn system_name_servers() -> Vec<SocketAddr> {
+fn platform_name_servers() -> Vec<SocketAddr> {
     Vec::new()
 }
 
@@ -293,6 +318,17 @@ mod tests {
         let mut truncated = good;
         truncated[2] |= 0x02;
         assert!(matches!(parse_reply(7, &truncated), Reply::Truncated));
+    }
+
+    #[test]
+    fn provided_name_servers_replace_the_system_ones_only_when_there_are_some() {
+        let provided: Vec<SocketAddr> = vec!["10.0.0.2:53".parse().unwrap()];
+        let system: Vec<SocketAddr> = vec!["192.168.1.1:53".parse().unwrap()];
+        assert_eq!(
+            preferred(provided.clone(), || panic!("unexpected fallback")),
+            provided
+        );
+        assert_eq!(preferred(Vec::new(), || system.clone()), system);
     }
 
     #[test]
