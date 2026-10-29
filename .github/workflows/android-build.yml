@@ -1,0 +1,111 @@
+name: Android Build
+
+# Builds the Horizon Android APK (arm64-v8a) with packaging/android/build_apk.sh.
+# RULE: horizon-derived.zip is NOT built, bundled, downloaded or uploaded here.
+# It is derived from Mojang's game files and must never be published.
+
+on:
+  push:
+    branches: [android-port]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Cargo profile (fast = quick link, release = thin LTO)"
+        type: choice
+        options:
+          - fast
+          - release
+        default: fast
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  NDK_VERSION: 27.2.12479018
+  BUILD_PROFILE: ${{ github.event.inputs.profile || 'fast' }}
+
+jobs:
+  build-apk:
+    name: Build APK (arm64-v8a)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # javac from JDK 21 must be on PATH (JDK 25 output breaks d8 34).
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: cargo-android-${{ env.BUILD_PROFILE }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-android-${{ env.BUILD_PROFILE }}-
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      # build_apk.sh compiles against platforms/android-35 and picks the newest build-tools.
+      - name: Install Android SDK packages
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;${NDK_VERSION}" \
+            "platform-tools"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      # No HORIZON_DERIVED_URL is set on purpose.
+      - name: Build APK
+        run: |
+          chmod +x packaging/android/build_apk.sh
+          PROFILE="$BUILD_PROFILE" ./packaging/android/build_apk.sh
+
+      # Enforce the rule: nothing named horizon-derived* in the output or inside the APK.
+      - name: Verify no horizon-derived.zip
+        run: |
+          if find target/android -iname 'horizon-derived*' | grep -q .; then
+            echo "::error::horizon-derived.zip must not be in the build output"
+            exit 1
+          fi
+          if unzip -l target/android/horizon.apk | grep -qi 'derived'; then
+            echo "::error::APK contains a derived pack"
+            exit 1
+          fi
+          ls -lh target/android/horizon.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizon-apk-${{ env.BUILD_PROFILE }}
+          path: target/android/horizon.apk
+          if-no-files-found: error
+          retention-days: 30
