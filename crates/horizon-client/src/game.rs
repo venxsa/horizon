@@ -8235,6 +8235,7 @@ impl Game<'_> {
             self.yaw,
             self.pitch,
             alpha as f32,
+            self.view_frustum.as_ref(),
             &|b| world.light(b[0], b[1], b[2]),
             &mut out,
         );

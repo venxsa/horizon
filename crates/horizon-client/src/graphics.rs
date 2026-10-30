@@ -283,7 +283,7 @@ impl Default for Graphics {
             lod_distance: 0,
             far_detail: FarDetail::Full,
             cave_culling: true,
-            entity_culling: false,
+            entity_culling: cfg!(target_os = "android"),
             chunk_updates: 0,
             upload_budget_kib: 0,
             sky: true,
@@ -424,6 +424,11 @@ impl Graphics {
             .map_or(2, |n| n.get())
             .saturating_sub(1)
             .max(1);
+        let auto = if cfg!(target_os = "android") {
+            auto.min(4)
+        } else {
+            auto
+        };
         if self.battery { auto.div_ceil(2) } else { auto }
     }
     /// The frame cap battery mode adds: 60 in a world, 30 in menus without a

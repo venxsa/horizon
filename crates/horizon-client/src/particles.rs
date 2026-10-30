@@ -3682,6 +3682,7 @@ impl ParticleEngine {
         yaw: f32,
         pitch: f32,
         partial: f32,
+        view: Option<&crate::gfx::Frustum>,
         light_at: &dyn Fn([i32; 3]) -> u8,
         out: &mut Vec<Vertex>,
     ) {
@@ -3726,6 +3727,12 @@ impl ParticleEngine {
                 base
             };
             let size = p.quad_size(partial);
+            if let Some(view) = view {
+                let reach = FVec3::splat(size * 1.5);
+                if !view.intersects(center - reach, center + reach) {
+                    continue;
+                }
+            }
             let mut alpha = p.rgba[3];
             // OverlayParticle.extract: the flash fades as it pulses.
             if p.ty == ParticleType::Flash {
