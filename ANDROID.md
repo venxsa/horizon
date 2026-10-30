@@ -15,8 +15,10 @@ sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;27.2.12479018" "plat
 export ANDROID_HOME=~/android/sdk            # NDK: the newest under $ANDROID_HOME/ndk, or ANDROID_NDK_HOME
 ./packaging/android/build_apk.sh             # -> target/android/horizon.apk (debug-signed)
 PROFILE=release ./packaging/android/build_apk.sh   # slower build, faster game
-CARGO_FLAGS="--features mods" ./packaging/android/build_apk.sh   # wasm code mods (untested on Android)
 ```
+
+Wasm code mods are built in (the `mods` feature is on by default). Put them in
+`/sdcard/Android/data/dev.horizonlab.horizon/files/horizon-mods/`.
 
 The script runs `cargo ndk` (API 26, arm64-v8a), strips the library, links the manifest
 (`packaging/android/AndroidManifest.xml`) with `aapt2`, zipaligns and signs with
