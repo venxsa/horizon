@@ -30,6 +30,9 @@ fn android_main(app: AndroidApp) {
             std::env::set_var("HORIZON_RESOURCES", home.join("resources"));
         }
         std::env::set_var("HOME", &home);
+        if std::env::var_os("HORIZON_SPIKES").is_none() {
+            std::env::set_var("HORIZON_SPIKES", "20");
+        }
         if let Some(internal) = app.internal_data_path() {
             std::env::set_var("HORIZON_CACHE", internal.join("horizon-cache"));
         }

@@ -55,6 +55,21 @@ pub fn thread_cpu() -> Option<Duration> {
     horizon_threads::thread_cpu()
 }
 
+/// Whether `interval` has passed since this thread last got true.
+pub fn due(interval: Duration) -> bool {
+    thread_local! {
+        static LAST: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
+    }
+    LAST.with(|last| {
+        let now = Instant::now();
+        if last.get().is_some_and(|t| now.duration_since(t) < interval) {
+            return false;
+        }
+        last.set(Some(now));
+        true
+    })
+}
+
 /// The frame's spans, summed by name, slowest first; clears them.
 pub fn take() -> Vec<Span> {
     let spans = SPANS.with(|s| std::mem::take(&mut *s.borrow_mut()));
@@ -91,6 +106,13 @@ pub fn describe(spans: &[Span]) -> String {
 #[cfg(test)]
 mod tests {
     use super::Span;
+
+    #[test]
+    fn due_waits_for_its_interval() {
+        assert!(super::due(std::time::Duration::ZERO));
+        assert!(super::due(std::time::Duration::ZERO));
+        assert!(!super::due(std::time::Duration::from_secs(3600)));
+    }
 
     /// Spans of one name add up; a span the thread spent mostly waiting
     /// shows its CPU time after the wall time, short ones are left out.

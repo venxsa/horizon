@@ -13371,7 +13371,10 @@ impl ApplicationHandler for Game<'_> {
                     {
                         let cpu = now.elapsed().saturating_sub(r.last_wait).as_secs_f32() * 1000.0;
                         let spans = horizon_client::spans::take();
-                        if cpu > threshold {
+                        if cpu > threshold
+                            && (!cfg!(target_os = "android")
+                                || horizon_client::spans::due(Duration::from_secs(2)))
+                        {
                             // The render thread's own CPU time in the frame:
                             // far below the wall time, the frame waited.
                             let worked = horizon_client::spans::thread_cpu()

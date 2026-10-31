@@ -370,7 +370,10 @@ impl Game<'_> {
         let wall = started.elapsed().as_secs_f32() * 1000.0;
         // Taken every tick: nothing else takes this thread's spans.
         let spans = horizon_client::spans::take();
-        if wall > threshold {
+        if wall > threshold
+            && (!cfg!(target_os = "android")
+                || horizon_client::spans::due(std::time::Duration::from_secs(2)))
+        {
             let cpu = horizon_client::spans::thread_cpu()
                 .zip(cpu)
                 .map_or_else(String::new, |(end, start)| {
