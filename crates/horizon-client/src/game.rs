@@ -12563,6 +12563,15 @@ impl ApplicationHandler for Game<'_> {
             self.touch_event(event_loop, *touch);
             return;
         }
+        #[cfg(target_os = "android")]
+        if let WindowEvent::KeyboardInput { event: key, .. } = &event
+            && let PhysicalKey::Unidentified(winit::keyboard::NativeKeyCode::Android(code)) =
+                key.physical_key
+            && self.android_pad_key(code, key.state == ElementState::Pressed)
+        {
+            self.last_input = Instant::now();
+            return;
+        }
         if let WindowEvent::KeyboardInput { event, .. } = &event
             && let PhysicalKey::Code(key) = event.physical_key
         {

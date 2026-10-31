@@ -22,6 +22,59 @@ pub(super) const HELP: &[&str] = &[
     "pad status                     connected controllers, the active one and its state",
 ];
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) enum AndroidPad {
+    Button(Button),
+    Trigger(usize),
+}
+
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub(super) fn android_pad(code: u32) -> Option<AndroidPad> {
+    Some(match code {
+        96 => AndroidPad::Button(Button::South),
+        97 => AndroidPad::Button(Button::East),
+        99 => AndroidPad::Button(Button::West),
+        100 => AndroidPad::Button(Button::North),
+        102 => AndroidPad::Button(Button::LeftBumper),
+        103 => AndroidPad::Button(Button::RightBumper),
+        104 => AndroidPad::Trigger(0),
+        105 => AndroidPad::Trigger(1),
+        106 => AndroidPad::Button(Button::LeftStick),
+        107 => AndroidPad::Button(Button::RightStick),
+        108 => AndroidPad::Button(Button::Start),
+        109 => AndroidPad::Button(Button::Select),
+        _ => return None,
+    })
+}
+
+impl Game<'_> {
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    pub(super) fn android_pad_key(&mut self, code: u32, down: bool) -> bool {
+        match android_pad(code) {
+            Some(AndroidPad::Button(button)) => self.pad.injected.set(button, down),
+            Some(AndroidPad::Trigger(i)) => self.pad.injected.triggers[i] = f32::from(down),
+            None => return false,
+        }
+        true
+    }
+}
+
+#[cfg(test)]
+mod android_pad_tests {
+    use super::*;
+
+    #[test]
+    fn face_buttons_triggers_and_unknown_codes() {
+        assert_eq!(android_pad(96), Some(AndroidPad::Button(Button::South)));
+        assert_eq!(android_pad(100), Some(AndroidPad::Button(Button::North)));
+        assert_eq!(android_pad(108), Some(AndroidPad::Button(Button::Start)));
+        assert_eq!(android_pad(104), Some(AndroidPad::Trigger(0)));
+        assert_eq!(android_pad(105), Some(AndroidPad::Trigger(1)));
+        assert_eq!(android_pad(4), None);
+        assert_eq!(android_pad(110), None);
+    }
+}
+
 /// The controllers and the state the game last acted on.
 #[derive(Default)]
 pub(super) struct Pads {

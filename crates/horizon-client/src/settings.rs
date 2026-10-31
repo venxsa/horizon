@@ -201,10 +201,19 @@ impl Default for Settings {
             vsync: true,
             fullscreen: false,
             smooth_lighting: true,
-            clouds: if cfg!(target_os = "android") { "fast" } else { "true" }.into(),
+            clouds: if cfg!(target_os = "android") {
+                "fast"
+            } else {
+                "true"
+            }
+            .into(),
             cloud_range: if cfg!(target_os = "android") { 64 } else { 128 },
             particles: if cfg!(target_os = "android") { 1 } else { 0 },
-            entity_distance: if cfg!(target_os = "android") { 0.75 } else { 1.0 },
+            entity_distance: if cfg!(target_os = "android") {
+                0.75
+            } else {
+                1.0
+            },
             entity_shadows: !cfg!(target_os = "android"),
             biome_blend: if cfg!(target_os = "android") { 1 } else { 2 },
             graphics_preset: "fancy".into(),

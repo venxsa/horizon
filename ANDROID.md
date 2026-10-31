@@ -68,8 +68,11 @@ folder is used instead (reachable only with `adb shell run-as` on a debug build)
   next hotbar slot, use/place, attack/break, then at the bottom jump (outermost) and sneak.
   They go through the virtual controller, so they follow the controller bindings (`horizon-controller.txt`).
 - **Keyboard/mouse** (USB/Bluetooth) arrive through winit like on desktop.
-- **Gamepads:** gilrs has no Android backend, so the `controllers` feature is off. A Bluetooth pad's buttons
-  may reach the game as key events only; not mapped yet.
+- **Gamepads:** gilrs has no Android backend, so the `controllers` feature is off. A Bluetooth pad's face
+  buttons, bumpers, L2/R2 (as on/off), stick clicks, Start and Select arrive as key events and go to the
+  virtual pad (`game/pad.rs`, `android_pad`); the D-pad moves through the arrow keys. The sticks are not read:
+  winit turns Android motion events into touch only. Until that changes, move and look with the touch
+  controls or a keyboard.
 
 ## What differs from desktop
 
