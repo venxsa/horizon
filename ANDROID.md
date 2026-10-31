@@ -14,7 +14,7 @@ cargo install cargo-ndk
 sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;27.2.12479018" "platform-tools"
 export ANDROID_HOME=~/android/sdk            # NDK: the newest under $ANDROID_HOME/ndk, or ANDROID_NDK_HOME
 ./packaging/android/build_apk.sh             # -> target/android/horizon.apk (debug-signed)
-PROFILE=release ./packaging/android/build_apk.sh   # slower build, faster game
+PROFILE=fast ./packaging/android/build_apk.sh      # quicker build while developing; release is the default
 ```
 
 Wasm code mods are built in (the `mods` feature is on by default). Put them in
@@ -80,6 +80,7 @@ folder is used instead (reachable only with `adb shell run-as` on a debug build)
 | Text input | no on-screen keyboard (chat, sign editing, world names need a physical keyboard) |
 | Surface | dropped on `suspended`, recreated on `resumed` (`Renderer::lose_surface/regain_surface`) |
 | Resources | `HORIZON_RESOURCES` (set by `android_main`) |
+| Defaults for a fresh install | Lighter than desktop: render distance 8, simulation distance 6, 60 fps, fast clouds, reduced particles, no entity shadows, 2 mip levels, 4 MiB/frame mesh upload budget, entity culling on, at most 4 mesh workers. All still changeable in the options |
 | Logs | `/storage/emulated/0/Android/data/dev.horizonlab.horizon/files/logs/latest.log`, crash reports in `crash-reports/` beside it (nothing in logcat). Any file manager with access to Android/data, or `adb pull` |
 | Launcher, horizon-prepare, server binary, telemetry server | not built |
 

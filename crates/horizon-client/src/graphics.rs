@@ -285,7 +285,7 @@ impl Default for Graphics {
             cave_culling: true,
             entity_culling: cfg!(target_os = "android"),
             chunk_updates: 0,
-            upload_budget_kib: 0,
+            upload_budget_kib: if cfg!(target_os = "android") { 4096 } else { 0 },
             sky: true,
             fog: true,
             weather: true,

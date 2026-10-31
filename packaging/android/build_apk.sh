@@ -7,7 +7,7 @@ NDK="${ANDROID_NDK_HOME:-$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -n1)}"
 export ANDROID_NDK_HOME="$NDK"
 BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n1)"
 PLATFORM="$ANDROID_HOME/platforms/android-35/android.jar"
-PROFILE="${PROFILE:-fast}"
+PROFILE="${PROFILE:-release}"
 OUT=target/android
 rm -rf "$OUT/stage" && mkdir -p "$OUT/stage/lib"
 cargo ndk -t arm64-v8a -P 26 -o "$OUT/jni" build -p horizon-android --profile "$PROFILE" ${CARGO_FLAGS:-}
